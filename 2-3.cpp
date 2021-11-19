@@ -50,4 +50,7 @@ int main() {
     std::cin >> b[i];
 
   print_intersection(a, n, b, m);
+
+  delete[] a;
+  delete[] b;
 }
