@@ -17,8 +17,8 @@
 template <typename T, typename Comparator = std::less<T>> class Heap {
 private:
   T *buffer;
-  std::size_t buffer_size;
-  std::size_t index;
+  std::size_t cap;
+  std::size_t len;
   Comparator compare;
 
   std::size_t next_power_of_two(std::size_t n) {
@@ -30,7 +30,7 @@ private:
 
 public:
   explicit Heap(Comparator compare = Comparator())
-      : buffer_size(0), index(0), compare(compare), buffer(nullptr) {
+      : cap(0), len(0), compare(compare), buffer(nullptr) {
     reserve_exact(2);
   }
 
@@ -39,8 +39,8 @@ public:
   Heap(const Heap &) = delete;
   Heap &operator=(const Heap &) = delete;
 
-  std::size_t size() { return index; }
-  std::size_t capacity() { return buffer_size; }
+  std::size_t size() { return len; }
+  std::size_t capacity() { return cap; }
 
   void grow(std::size_t newSize) {
     assert(newSize >= size());
@@ -52,7 +52,7 @@ public:
       }
       buffer = memory;
     }
-    buffer_size = newSize;
+    cap = newSize;
   }
 
   void reserve(std::size_t additional) {
@@ -68,7 +68,7 @@ public:
   }
 
   void sift() {
-    auto inserted = index;
+    auto inserted = len;
 
     while (true) {
       if (inserted == 1)
@@ -83,9 +83,9 @@ public:
   }
 
   template <typename U> void insert(U &&value) {
-    if (++index == buffer_size)
+    if (++len == cap)
       reserve(1);
-    buffer[index] = std::forward<U>(value);
+    buffer[len] = std::forward<U>(value);
     sift();
   }
 
@@ -94,9 +94,9 @@ public:
     while (true) {
       std::size_t child_left = parent * 2;
       std::size_t child_right = parent * 2 + 1;
-      if (child_left > index)
+      if (child_left > len)
         break;
-      if (child_right <= index &&
+      if (child_right <= len &&
           !compare(buffer[child_left], buffer[child_right]))
         std::swap(buffer[child_left], buffer[child_right]);
 
@@ -115,14 +115,14 @@ public:
 
   void pop() {
     assert(size() > 0);
-    std::swap(buffer[1], buffer[index]);
-    index--;
+    std::swap(buffer[1], buffer[len]);
+    len--;
     normalize();
   }
 
   void pop_last() {
     assert(size() > 0);
-    index--;
+    len--;
   }
 };
 
