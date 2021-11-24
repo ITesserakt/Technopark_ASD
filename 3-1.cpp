@@ -31,12 +31,24 @@ public:
 
   void grow(std::size_t newSize) {
     assert(newSize >= size());
-    if (newSize != capacity()) {
-      T *memory = new T[newSize];
-      std::swap_ranges(buffer, buffer + size(), memory);
-      delete[] buffer;
-      buffer = memory;
+    if (newSize == capacity())
+      return;
+
+    T *memory = new T[newSize];
+    auto end = start + real_size;
+    if (end > buffer_size)
+      end %= buffer_size;
+
+    if (start >= end) {
+      std::swap_ranges(buffer + start, buffer + buffer_size, memory);
+      std::swap_ranges(buffer, buffer + end, memory + buffer_size - start);
+    } else {
+      std::swap_ranges(buffer + start, buffer + end, memory);
     }
+
+    delete[] buffer;
+    buffer = memory;
+    start = 0;
     buffer_size = newSize;
   }
 
@@ -71,14 +83,30 @@ public:
 
   void pop() {
     assert(size() > 0);
-    if (2 * size() < capacity())
-      shrink();
-
+    buffer[start] = 0;
     start = (start + 1) % buffer_size;
     real_size--;
+
+    if (2 * size() <= capacity())
+      shrink();
   }
 
   ~Queue() { delete[] buffer; }
+
+  void debug() {
+    std::cout << "start = " << start << ", end = "
+              << (capacity() == 0 ? 0 : (start + real_size) % capacity())
+              << ", size = " << size() << ", capacity = " << capacity()
+              << ", elements = {";
+    if (buffer == nullptr)
+      std::cout << "null";
+    else {
+      for (int i = 0; i < capacity() - 1; i++)
+        std::cout << buffer[i] << ", ";
+      std::cout << buffer[capacity() - 1];
+    }
+    std::cout << "}" << std::endl;
+  }
 };
 
 bool check_queue(int operation, int value, Queue<int> &queue) {
@@ -92,9 +120,9 @@ bool check_queue(int operation, int value, Queue<int> &queue) {
     if (queue.size() == 0)
       return false;
     auto actual = queue.top();
+    queue.pop();
     if (actual != value)
       return false;
-    queue.pop();
     return true;
   }
   return false;
@@ -104,7 +132,6 @@ int main() {
   int n;
   std::cin >> n;
   Queue<int> q;
-  bool passed = true;
 
   for (int i = 0; i < n; i++) {
     int a, b;
