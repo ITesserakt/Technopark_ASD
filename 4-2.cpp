@@ -16,6 +16,13 @@ private:
   std::size_t index;
   Comparator compare;
 
+  std::size_t next_power_of_two(std::size_t n) {
+    std::size_t result = 1;
+    while (n > result)
+      result <<= 1;
+    return result;
+  };
+
 public:
   explicit Heap(Comparator compare = Comparator())
       : buffer_size(0), index(0), compare(compare), buffer(nullptr) {
@@ -46,12 +53,6 @@ public:
   void reserve(std::size_t additional) {
     if (capacity() - size() >= additional)
       return;
-    constexpr auto next_power_of_two = [](std::size_t n) {
-      std::size_t result = 1;
-      while (n > result)
-        result <<= 1;
-      return result;
-    };
     grow(next_power_of_two(size() + additional));
   }
 
