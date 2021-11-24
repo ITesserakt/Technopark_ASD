@@ -8,7 +8,7 @@
 #include <iostream>
 
 template <typename T>
-auto binary_search(T *array, T element, std::size_t size, std::size_t from, std::size_t to) {
+auto binary_search(T *array, T element, std::size_t from, std::size_t to) {
   auto left = from;
   auto right = to;
 
@@ -20,29 +20,27 @@ auto binary_search(T *array, T element, std::size_t size, std::size_t from, std:
     else
       left = mid;
   }
-  return left;
+  return std::make_pair(left, right);
 }
 
-template <typename T> int find_max_below(T *array, int length, T below) {
-  int range = 1;
+template <typename T>
+std::size_t find_max_below(T *array, std::size_t length, T below) {
+  if (below <= array[0])
+    return 0;
+  if (array[length - 1] <= below)
+    return length - 1;
+
+  std::size_t range = 1;
   while (range < length && array[range] < below)
     range <<= 1;
+  if (range > length - 1)
+    range = length - 1;
 
-  int found =
-      binary_search(array, below, length, 0, length);
+  auto [left, right] = binary_search(array, below, range / 2, range);
 
-  if (found == length - 1 || found == 0)
-    return found;
-
-  auto diff = std::abs(array[found] - below);
-  if (diff == 0) {
-    return found;
-  } else if (std::abs(array[found + 1] - below) < diff) {
-    return found + 1;
-  } else if (std::abs(array[found - 1] - below) < diff) {
-    return found - 1;
-  }
-  return found;
+  if (std::abs(array[left] - below) <= std::abs(array[right] - below))
+    return left;
+  return right;
 }
 
 int main() {
