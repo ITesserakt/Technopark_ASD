@@ -8,30 +8,47 @@
  */
 
 #include <iostream>
+#include <random>
 
-template <typename T, typename F = std::less<T>>
-std::size_t partition(T *array, std::size_t from, std::size_t to,
-                      F compare = std::less<T>()) {
-  T mid = array[(from + to) / 2];
-  while (from <= to) {
-    while (compare(array[from], mid))
-      from++;
-    while (!compare(array[to], mid) && array[to] != mid)
-      to--;
-    if (from >= to)
-      break;
-    std::swap(array[from++], array[to--]);
-  }
-  return to;
+std::default_random_engine engine{std::random_device{}()};
+
+std::size_t median_of_three(std::size_t from, std::size_t to) {
+  std::uniform_int_distribution<std::size_t> distribution{from, to};
+  auto first = distribution(engine);
+  auto second = distribution(engine);
+  auto third = distribution(engine);
+  return first + second + third - std::max({first, second, third}) -
+         std::min({first, second, third});
 }
 
-template <typename T, typename F = std::less<T>>
+std::size_t random_pivot(std::size_t from, std::size_t to) {
+  std::uniform_int_distribution<std::size_t> distribution{from, to};
+  return distribution(engine);
+}
+
+template <typename T, typename G, typename F = std::greater<T>>
+std::size_t partition_forward(T *array, std::size_t from, std::size_t to,
+                              G pivot_fn, F compare = std::greater<T>()) {
+  std::size_t pivot = to, i = from;
+  std::swap(array[pivot_fn(from, to)], array[to]);
+  for (std::size_t j = from; j < to; j++) {
+    if (!compare(array[j], array[pivot])) {
+      std::swap(array[i], array[j]);
+      i++;
+    }
+  }
+  std::swap(array[i], array[pivot]);
+  return i;
+}
+
+template <typename T, typename F = std::greater<T>>
 T k_order_statistics(T *array, std::size_t size, std::size_t k,
-                     F compare = std::less<T>()) {
+                     F compare = std::greater<T>()) {
   std::size_t left = 0;
   auto right = size - 1;
   while (true) {
-    std::size_t mid = partition(array, left, right, compare);
+    std::size_t mid =
+        partition_forward(array, left, right, random_pivot, compare);
 
     if (mid == k)
       return array[mid];
