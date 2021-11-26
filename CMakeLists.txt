@@ -3,6 +3,14 @@ project(Technopark_ASD)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include(FetchContent)
+FetchContent_Declare(
+        rapidcheck
+        GIT_REPOSITORY https://github.com/emil-e/rapidcheck.git)
+FetchContent_MakeAvailable(rapidcheck)
+
+link_libraries(rapidcheck)
+
 add_executable(1-1 1-1.cpp)
 add_executable(1-2 1-2.cpp)
 add_executable(1-3 1-3.cpp)

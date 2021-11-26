@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <random>
+//#include <rapidcheck.h>
 
 std::default_random_engine engine{std::random_device{}()};
 
@@ -17,8 +18,13 @@ std::size_t median_of_three(std::size_t from, std::size_t to) {
   auto first = distribution(engine);
   auto second = distribution(engine);
   auto third = distribution(engine);
-  return first + second + third - std::max({first, second, third}) -
-         std::min({first, second, third});
+
+  std::size_t max =
+      first >= second ? std::max(first, third) : std::max(second, third);
+  std::size_t min =
+      first <= second ? std::min(first, third) : std::min(second, third);
+
+  return first + second + third - max - min;
 }
 
 std::size_t random_pivot(std::size_t from, std::size_t to) {
@@ -26,44 +32,82 @@ std::size_t random_pivot(std::size_t from, std::size_t to) {
   return distribution(engine);
 }
 
-template <typename T, typename G, typename F = std::greater<T>>
-std::size_t partition_forward(T *array, std::size_t from, std::size_t to,
-                              G pivot_fn, F compare = std::greater<T>()) {
-  std::size_t pivot = to, i = from;
-  std::swap(array[pivot_fn(from, to)], array[to]);
-  for (std::size_t j = from; j < to; j++) {
-    if (!compare(array[j], array[pivot])) {
-      std::swap(array[i], array[j]);
-      i++;
-    }
+std::size_t first_pivot(std::size_t from, std::size_t to) { return from; }
+
+template <typename T, typename P, typename C>
+std::size_t partition_backward(T *array, std::size_t from, std::size_t to,
+                               P pivot_fn, C comparator) {
+  auto pivot = pivot_fn(from, to);
+  std::swap(array[pivot], array[from]);
+  pivot = from;
+  auto i = to;
+  auto j = to;
+
+  while (pivot < j) {
+    if (comparator(array[j], array[pivot]))
+      std::swap(array[i--], array[j]);
+    j--;
   }
   std::swap(array[i], array[pivot]);
   return i;
 }
 
-template <typename T, typename F = std::greater<T>>
+template <typename T, typename P, typename C>
+std::size_t partition_forward(T *array, std::size_t from, std::size_t to,
+                              P pivot_fn, C comparator) {
+  auto pivot = pivot_fn(from, to);
+  std::swap(array[pivot], array[to]);
+  pivot = to;
+  auto i = from;
+  auto j = from;
+
+  while (j < pivot) {
+    if (comparator(array[j], array[pivot]))
+      std::swap(array[i++], array[j]);
+    j++;
+  }
+  std::swap(array[i], array[pivot]);
+  return i;
+}
+
+template <typename T, typename F = std::less<T>>
 T k_order_statistics(T *array, std::size_t size, std::size_t k,
-                     F compare = std::greater<T>()) {
+                     F compare = F()) {
   std::size_t left = 0;
   auto right = size - 1;
   while (true) {
     std::size_t mid =
-        partition_forward(array, left, right, random_pivot, compare);
+        partition_forward(array, left, right, median_of_three, compare);
 
     if (mid == k)
       return array[mid];
     else if (k < mid)
-      right = mid;
+      right = mid - 1;
     else
       left = mid + 1;
   }
 }
 
-template <typename T>
-double nth_percentile(T *array, std::size_t n, std::size_t p) {
+template <typename T, typename F = std::less<T>>
+double nth_percentile(T *array, std::size_t n, std::size_t p, F compare = F()) {
   std::size_t index = n * p / 100;
-  return k_order_statistics(array, n, index);
+  return k_order_statistics(array, n, index, compare);
 }
+
+// void test() {
+//   rc::check([] {
+//     auto n = *rc::gen::inRange(1, 10000);
+//     auto vec = *rc::gen::unique<std::vector<int>>(
+//         n, rc::gen::inRange(0, 1'000'000'000));
+//
+//     std::vector<int> copy = vec;
+//     std::sort(copy.begin(), copy.end());
+//
+//     RC_ASSERT(copy[n * 0.1] == nth_percentile(vec.data(), n, 10));
+//     RC_ASSERT(copy[n * 0.5] == nth_percentile(vec.data(), n, 50));
+//     RC_ASSERT(copy[n * 0.9] == nth_percentile(vec.data(), n, 90));
+//   });
+// }
 
 int main() {
   int n;
