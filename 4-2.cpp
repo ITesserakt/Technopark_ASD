@@ -53,6 +53,14 @@ public:
   explicit Heap(Comparator compare = Comparator())
       : cap(0), len(0), compare(compare), buffer(nullptr) {}
 
+  template <typename C>
+  explicit Heap(Heap<T, C> &&other, Comparator compare = Comparator())
+      : cap(other.capacity()), len(other.size()), compare(compare) {
+    buffer = other.data();
+    other.data() = nullptr;
+    sift_down(0);
+  }
+
   ~Heap() { delete[] buffer; }
 
   Heap(const Heap &) = delete;
@@ -60,6 +68,7 @@ public:
 
   std::size_t size() { return len; }
   std::size_t capacity() { return cap; }
+  T *&data() { return buffer; }
 
   void grow(std::size_t newSize) {
     assert(newSize >= size());
@@ -106,11 +115,6 @@ public:
     }
   }
 
-  void pop_last() {
-    assert(size() > 0);
-    len--;
-  }
-
   void debug() {
     std::cout << "size = " << size() << ", capacity = " << capacity()
               << ", elements = {";
@@ -129,6 +133,7 @@ struct User {
   int id;
   int attendance;
 
+  bool operator>(const User &rhs) const { return attendance > rhs.attendance; }
   bool operator<(const User &rhs) const { return attendance < rhs.attendance; }
 
   friend std::istream &operator>>(std::istream &is, User &user) {
@@ -136,6 +141,10 @@ struct User {
     is >> id >> attendance;
     user = {id, attendance};
     return is;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const User &user) {
+    return os << "(" << user.id << ", " << user.attendance << ")";
   }
 };
 
@@ -147,23 +156,26 @@ int main() {
   for (int i = 0; i < n; i++)
     std::cin >> users[i];
 
-  Heap<User> heap;
+  Heap<User, std::greater<>> heap;
   heap.grow(k + 1);
 
   for (int i = 0; i < k; i++)
     heap.insert(users[i]);
 
   for (int i = k; i < n; i++) {
-    auto min = heap.top();
-    if (users[i] < min) {
+    auto max = heap.top();
+    if (max > users[i]) {
+      heap.pop();
       heap.insert(users[i]);
-      heap.pop_last();
     }
-    assert(heap.size() < k + 1);
+    assert(heap.size() <= k);
   }
 
+  Heap<User, std::less<>> copy{std::move(heap)};
   for (int i = 0; i < k; i++) {
-    std::cout << heap.top().id << ' ';
-    heap.pop();
+    std::cout << copy.top().id << ' ';
+    copy.pop();
   }
+
+  delete[] users;
 }
