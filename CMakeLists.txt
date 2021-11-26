@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(Technopark_ASD)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -26,3 +26,4 @@ add_executable(4-2 4-2.cpp)
 add_executable(4-3 4-3.cpp)
 add_executable(5-3 5-3.cpp)
 add_executable(6 6.cpp)
+add_executable(7-2 7-2.cpp)
