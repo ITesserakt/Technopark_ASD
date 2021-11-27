@@ -9,7 +9,6 @@
 
 #include <iostream>
 #include <random>
-//#include <rapidcheck.h>
 
 std::default_random_engine engine{std::random_device{}()};
 
@@ -33,6 +32,7 @@ std::size_t random_pivot(std::size_t from, std::size_t to) {
 }
 
 std::size_t first_pivot(std::size_t from, std::size_t to) { return from; }
+std::size_t last_pivot(std::size_t from, std::size_t to) { return to; }
 
 template <typename T, typename P, typename C>
 std::size_t partition_backward(T *array, std::size_t from, std::size_t to,
@@ -70,14 +70,14 @@ std::size_t partition_forward(T *array, std::size_t from, std::size_t to,
   return i;
 }
 
-template <typename T, typename F = std::less<T>>
+template <typename T, typename F = std::greater<T>>
 T k_order_statistics(T *array, std::size_t size, std::size_t k,
                      F compare = F()) {
   std::size_t left = 0;
   auto right = size - 1;
   while (true) {
     std::size_t mid =
-        partition_forward(array, left, right, median_of_three, compare);
+        partition_backward(array, left, right, median_of_three, compare);
 
     if (mid == k)
       return array[mid];
@@ -88,26 +88,11 @@ T k_order_statistics(T *array, std::size_t size, std::size_t k,
   }
 }
 
-template <typename T, typename F = std::less<T>>
+template <typename T, typename F = std::greater<T>>
 double nth_percentile(T *array, std::size_t n, std::size_t p, F compare = F()) {
   std::size_t index = n * p / 100;
   return k_order_statistics(array, n, index, compare);
 }
-
-// void test() {
-//   rc::check([] {
-//     auto n = *rc::gen::inRange(1, 10000);
-//     auto vec = *rc::gen::unique<std::vector<int>>(
-//         n, rc::gen::inRange(0, 1'000'000'000));
-//
-//     std::vector<int> copy = vec;
-//     std::sort(copy.begin(), copy.end());
-//
-//     RC_ASSERT(copy[n * 0.1] == nth_percentile(vec.data(), n, 10));
-//     RC_ASSERT(copy[n * 0.5] == nth_percentile(vec.data(), n, 50));
-//     RC_ASSERT(copy[n * 0.9] == nth_percentile(vec.data(), n, 90));
-//   });
-// }
 
 int main() {
   int n;
