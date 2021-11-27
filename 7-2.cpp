@@ -44,7 +44,7 @@ int main() {
   int n;
   std::cin >> n;
 
-  auto *array = new unsigned long long[n];
+  unsigned long long *array = new unsigned long long[n];
   for (int i = 0; i < n; i++)
     std::cin >> array[i];
 
