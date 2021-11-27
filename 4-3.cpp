@@ -14,7 +14,8 @@
 #include <cassert>
 #include <iostream>
 
-template <typename T, typename Comparator = std::less<T>> class Heap {
+template <typename T, typename Comparator = std::less<T>>
+class Heap {
 private:
   T *buffer;
   std::size_t cap;
@@ -28,11 +29,35 @@ private:
     return result;
   };
 
+  void sift_up(std::size_t index) {
+    while (index > 0) {
+      auto parent = (index - 1) / 2;
+      if (compare(buffer[parent], buffer[index]))
+        return;
+      std::swap(buffer[index], buffer[parent]);
+      index = parent;
+    }
+  }
+
+  void sift_down(std::size_t index) {
+    while (index < size()) {
+      auto left = index * 2 + 1;
+      auto right = index * 2 + 2;
+      auto next = index;
+      if (left < size() && compare(buffer[left], buffer[next]))
+        next = left;
+      if (right < size() && compare(buffer[right], buffer[next]))
+        next = right;
+      if (next == index)
+        return;
+      std::swap(buffer[next], buffer[index]);
+      index = next;
+    }
+  }
+
 public:
   explicit Heap(Comparator compare = Comparator())
-      : cap(0), len(0), compare(compare), buffer(nullptr) {
-    reserve_exact(2);
-  }
+      : cap(0), len(0), compare(compare), buffer(nullptr) {}
 
   ~Heap() { delete[] buffer; }
 
@@ -67,66 +92,30 @@ public:
     grow(size() + additional);
   }
 
-  void sift() {
-    auto inserted = len;
-
-    while (true) {
-      if (inserted == 1)
-        break;
-      auto parent = inserted / 2;
-
-      if (compare(buffer[parent], buffer[inserted]))
-        break;
-      std::swap(buffer[parent], buffer[inserted]);
-      inserted = parent;
-    }
-  }
-
-  template <typename U> void insert(U &&value) {
-    if (++len == cap)
+  template <typename U>
+  void insert(U &&value) {
+    if (size() == capacity())
       reserve(1);
-    buffer[len] = std::forward<U>(value);
-    sift();
-  }
-
-  void normalize() {
-    std::size_t parent = 1;
-    while (true) {
-      std::size_t child_left = parent * 2;
-      std::size_t child_right = parent * 2 + 1;
-      if (child_left > len)
-        break;
-      if (child_right <= len &&
-          !compare(buffer[child_left], buffer[child_right]))
-        std::swap(buffer[child_left], buffer[child_right]);
-
-      if (compare(buffer[parent], buffer[child_left]))
-        break;
-      else
-        std::swap(buffer[parent], buffer[child_left]);
-      parent = child_left;
-    }
+    buffer[len++] = std::forward<U>(value);
+    sift_up(size() - 1);
   }
 
   T top() {
     assert(size() > 0);
-    return buffer[1];
+    return buffer[0];
   }
 
   void pop() {
-    assert(size() > 0);
-    std::swap(buffer[1], buffer[len]);
     len--;
-    normalize();
-  }
-
-  void pop_last() {
-    assert(size() > 0);
-    len--;
+    if (size() > 0) {
+      std::swap(buffer[0], buffer[size()]);
+      sift_down(0);
+    }
   }
 };
 
-template <typename T, typename Proj> struct ProjectionLess {
+template <typename T, typename Proj>
+struct ProjectionLess {
   Proj f;
 
   bool operator()(T &a, T &b) { return f(a) < f(b); }
@@ -135,18 +124,17 @@ template <typename T, typename Proj> struct ProjectionLess {
 template <typename T, typename PriorityProj>
 struct PriorityQueue : Heap<T, ProjectionLess<T, PriorityProj>> {
   explicit PriorityQueue(PriorityProj proj)
-      : Heap<T, ProjectionLess<T, PriorityProj>>(
-            ProjectionLess<T, PriorityProj>{proj}) {}
+      : Heap<T, ProjectionLess<T, PriorityProj>>({proj}) {}
 };
 
 struct Process {
 public:
-  int priority;
-  int time_worked;
-  int total;
+  unsigned int priority;
+  unsigned int time_worked;
+  unsigned int total;
 
   friend std::istream &operator>>(std::istream &is, Process &p) {
-    int priority, total;
+    unsigned int priority, total;
     is >> priority >> total;
     p = {priority, 0, total};
     return is;
@@ -156,7 +144,7 @@ public:
 class Processor {
 private:
   int context_toggled = 0;
-  PriorityQueue<Process, int (*)(Process &)> queue{
+  PriorityQueue<Process, unsigned int (*)(Process &)> queue{
       [](Process &p) { return p.priority * (p.time_worked + 1); }};
 
 public:
@@ -178,7 +166,14 @@ public:
   }
 };
 
+#ifdef TEST
+void test();
+#endif
+
 int main() {
+#ifdef TEST
+  test();
+#else
   int n;
   std::cin >> n;
   Processor processor;
@@ -191,4 +186,43 @@ int main() {
 
   processor.run();
   std::cout << processor.switched();
+#endif
 }
+
+#ifdef TEST
+#include <rapidcheck.h>
+
+template <>
+struct rc::Arbitrary<Process> {
+  static rc::Gen<Process> arbitrary() {
+    return rc::gen::build<Process>(rc::gen::set(&Process::priority, rc::gen::inRange(1, 1'000'000)),
+                                   rc::gen::set(&Process::time_worked, rc::gen::just(0)),
+                                   rc::gen::set(&Process::total, rc::gen::inRange(1, 1'000'000)));
+  }
+};
+
+void test() {
+  rc::check([](std::deque<Process> vec) {
+    RC_PRE(!vec.empty());
+    Processor processor;
+    for (auto process : std::vector<Process>{vec.begin(), vec.end()})
+      processor.addProcess(process);
+    processor.run();
+
+    ProjectionLess<Process, unsigned int (*)(Process)> compare = {[](Process p) { return p.priority * (p.time_worked + 1); }};
+    std::make_heap(vec.begin(), vec.end(), compare);
+    int switched = 0;
+    while (!vec.empty()) {
+      auto next = vec.front();
+      vec.pop_front();
+
+      if (next.time_worked < next.total) {
+        switched++;
+        next.time_worked += next.priority;
+        vec.push_back(next);
+      }
+    }
+    RC_ASSERT(switched == processor.switched());
+  });
+}
+#endif
